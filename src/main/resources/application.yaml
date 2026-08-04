@@ -1,3 +1,15 @@
 spring:
   application:
     name: api-debug-agent
+
+target:
+  base-url: http://localhost:8080
+
+llm:
+  enabled: true
+  model: claude-sonnet-5
+  max-tokens: 3000
+
+analysis:
+  n-plus-one:
+    min-repeat: 5
