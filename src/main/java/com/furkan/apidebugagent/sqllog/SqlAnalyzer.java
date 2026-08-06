@@ -37,7 +37,11 @@ public final class SqlAnalyzer {
         }
     }
 
-    public record EqualityPredicate(String table, String column) {
+    /**
+     * A {@code column = ?} predicate together with the 1-based position of its bind parameter,
+     * matching {@link BindParameter#index()} as logged by Hibernate.
+     */
+    public record EqualityPredicate(String table, String column, int parameterIndex) {
     }
 
     public static ParsedSelect parse(String sql) {
@@ -93,12 +97,15 @@ public final class SqlAnalyzer {
             } else if (current instanceof Parenthesis parenthesis) {
                 pending.push(parenthesis.getExpression());
             } else if (current instanceof EqualsTo equalsTo
-                    && equalsTo.getRightExpression() instanceof JdbcParameter
+                    && equalsTo.getRightExpression() instanceof JdbcParameter parameter
                     && equalsTo.getLeftExpression() instanceof Column column) {
                 String resolvedTable = resolveTable(column, aliasToTable, mainTableName);
-                if (resolvedTable != null && column.getColumnName() != null) {
+                Integer parameterIndex = parameter.getIndex();
+                // A predicate whose bind position is unknown is dropped rather than reported —
+                // callers must never guess which bind belongs to it.
+                if (resolvedTable != null && column.getColumnName() != null && parameterIndex != null) {
                     out.add(new EqualityPredicate(resolvedTable.toLowerCase(Locale.ROOT),
-                            column.getColumnName().toLowerCase(Locale.ROOT)));
+                            column.getColumnName().toLowerCase(Locale.ROOT), parameterIndex));
                 }
             }
             // OrExpression, InExpression and other operators are intentionally not descended

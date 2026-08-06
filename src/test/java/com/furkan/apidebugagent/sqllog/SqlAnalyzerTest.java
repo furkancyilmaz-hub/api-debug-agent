@@ -20,7 +20,7 @@ class SqlAnalyzerTest {
         assertThat(result.parsed()).isTrue();
         assertThat(result.table()).isEqualTo("payment");
         assertThat(result.parameterizedEqualities()).containsExactly(
-                new EqualityPredicate("payment", "customer_id"));
+                new EqualityPredicate("payment", "customer_id", 1));
     }
 
     @Test
@@ -32,8 +32,18 @@ class SqlAnalyzerTest {
         assertThat(result.parsed()).isTrue();
         assertThat(result.table()).isEqualTo("payment");
         assertThat(result.parameterizedEqualities()).containsExactlyInAnyOrder(
-                new EqualityPredicate("customer", "status"),
-                new EqualityPredicate("payment", "customer_id"));
+                new EqualityPredicate("customer", "status", 1),
+                new EqualityPredicate("payment", "customer_id", 2));
+    }
+
+    @Test
+    void shouldNumberBindPositionsInSourceOrderNotPredicateOrder() {
+        ParsedSelect result = SqlAnalyzer
+                .parse("select p1_0.id from payment p1_0 where p1_0.status=? and p1_0.customer_id=?");
+
+        assertThat(result.parameterizedEqualities()).containsExactlyInAnyOrder(
+                new EqualityPredicate("payment", "status", 1),
+                new EqualityPredicate("payment", "customer_id", 2));
     }
 
     @Test
@@ -43,7 +53,7 @@ class SqlAnalyzerTest {
         assertThat(result.parsed()).isTrue();
         assertThat(result.table()).isEqualTo("payment");
         assertThat(result.parameterizedEqualities()).containsExactly(
-                new EqualityPredicate("payment", "customer_id"));
+                new EqualityPredicate("payment", "customer_id", 1));
     }
 
     @Test
@@ -70,7 +80,7 @@ class SqlAnalyzerTest {
 
         assertThat(result.parsed()).isTrue();
         assertThat(result.parameterizedEqualities()).containsExactly(
-                new EqualityPredicate("payment", "customer_id"));
+                new EqualityPredicate("payment", "customer_id", 1));
     }
 
     @Test
@@ -98,7 +108,7 @@ class SqlAnalyzerTest {
 
         assertThat(result.table()).isEqualTo("payment");
         assertThat(result.parameterizedEqualities()).containsExactly(
-                new EqualityPredicate("payment", "customer_id"));
+                new EqualityPredicate("payment", "customer_id", 1));
     }
 
     @Test
