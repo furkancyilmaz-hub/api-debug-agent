@@ -128,6 +128,7 @@ Tamamlanmış `AnalysisReport`.
 
 | Alan | İçerik |
 |---|---|
+| `findingId` | bulgunun kimliği; `correlationId` + `foreignKey` + `normalizedQuery` hash'i |
 | `correlationId` | |
 | `endpoint` | `GET /customers?withPayments=true` |
 | `parentTable` / `childTable` | |
@@ -145,7 +146,10 @@ Model yalnızca iki **nullable** alan ekler:
 | Alan | İçerik |
 |---|---|
 | `explanation` | bulgunun insan diliyle açıklaması |
-| `suggestion` | `action`, `expectedResult`, `risk`, `alternatives` |
+| `suggestion` | `action`, `rationale`, `expectedResult`, `risk`, `alternatives` |
+
+`suggestion`'ın alanları da tek tek nullable'dır; `action` ya da `expectedResult` yoksa
+`suggestion` hiç üretilmez.
 
 Model bulgu ekleyemez, çıkaramaz, ölçülmüş değerleri değiştiremez. Model
 katmanı kapalıyken bu iki alan boş gelir, rapor yine geçerlidir.

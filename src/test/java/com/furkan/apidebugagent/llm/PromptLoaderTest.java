@@ -20,6 +20,15 @@ class PromptLoaderTest {
     }
 
     @Test
+    void shouldRenderEnrichPromptWithItsJsonSchemaIntact() {
+        String rendered = promptLoader.render("enrich", Map.of("findings", "[{\"findingId\":\"abc123\"}]"));
+
+        assertThat(rendered).contains("[{\"findingId\":\"abc123\"}]");
+        assertThat(rendered).contains("{ \"items\": [");
+        assertThat(rendered).doesNotContain("\\{");
+    }
+
+    @Test
     void shouldThrowPromptNotFoundExceptionWhenPromptDoesNotExist() {
         assertThatThrownBy(() -> promptLoader.render("does-not-exist", Map.of()))
             .isInstanceOf(PromptNotFoundException.class)
