@@ -18,7 +18,8 @@ sorgu planı, önce/sonra latency. Kanıt toplamadan sonuç üreten akış yazma
 
 ## Stack
 
-Java 21, Spring Boot 3.x, Spring AI Anthropic starter, Spring Web.
+Java 21, Spring Boot 4.1, Spring AI 2.0 (Anthropic + OpenAI starter'ları),
+Spring Web.
 UI: tek statik sayfa, 3 kolon — Request | Response | AI Analizi.
 
 ## Paket yapısı
@@ -28,7 +29,8 @@ com.furkan.apidebugagent
 ├── analysis/     # AnalysisService, NPlusOneDetector, Finding, AnalysisReport
 ├── sqllog/       # DemoApiClient, StatementAssembler, SqlAnalyzer, SqlNormalizer
 ├── schema/       # ForeignKeyCache, SchemaClient
-├── llm/          # LlmClient, PromptLoader
+├── llm/          # LlmClient (interface), RoutingLlmClient, AnthropicClient,
+│              #   OpenRouterClient, PromptLoader
 └── web/          # Controller + SSE
 ```
 
@@ -62,7 +64,9 @@ Telemetri, token sayımı ve maliyet hesabı **kapsam dışı**.
 ## Kurallar
 
 - Hedefe erişim yalnızca HTTP üzerinden; `demo-api`'nin veritabanına bağlanma
-- Modele giden tek yol `LlmClient`; `ChatModel`'i doğrudan çağırma
+- Modele giden tek yol `LlmClient` arayüzü; `ChatClient`/`ChatModel` yalnızca
+  `llm/` içindeki sağlayıcı implementasyonlarında görünür. Aktif sağlayıcı
+  `llm.provider` ile config'ten seçilir
 - Tespit tamamen deterministik — eşik ve koşullar Java'da, modelde değil
 - Model katmanı kapatılabilir; kapalıyken rapor eksiksiz üretilmeli
 - Model çıktısı merge edilirken **tek yönlü**: yalnızca boş açıklama/öneri
