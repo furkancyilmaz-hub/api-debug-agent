@@ -9,8 +9,15 @@ spring:
       base-url: https://openrouter.ai/api/v1
       api-key: ${OPENROUTER_API_KEY:}
 
+server:
+  port: 8081
+
 target:
   base-url: http://localhost:8080
+
+web:
+  cors:
+    allowed-origins: http://localhost:5173
 
 llm:
   enabled: true
@@ -24,5 +31,6 @@ llm:
       max-tokens: 3000
 
 analysis:
+  log-limit: 1000
   n-plus-one:
     min-repeat: 5
