@@ -35,7 +35,7 @@ public class FindingEnricher {
     /** Findings sent to the model in one call; the rest stay in the report unenriched. */
     private static final int MAX_ENRICHED = 10;
 
-    private final LlmClient llmClient;
+    private final ChatClientLlmClient llmClient;
 
     private final JsonResponseParser jsonResponseParser;
 
@@ -44,7 +44,8 @@ public class FindingEnricher {
     /** Own mapper, like {@link JsonResponseParser}: the auto-configured one is Jackson 3. */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public FindingEnricher(LlmClient llmClient, JsonResponseParser jsonResponseParser, LlmProperties llmProperties) {
+    public FindingEnricher(ChatClientLlmClient llmClient, JsonResponseParser jsonResponseParser,
+            LlmProperties llmProperties) {
         this.llmClient = llmClient;
         this.jsonResponseParser = jsonResponseParser;
         this.llmProperties = llmProperties;

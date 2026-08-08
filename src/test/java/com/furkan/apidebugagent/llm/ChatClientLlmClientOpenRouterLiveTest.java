@@ -12,10 +12,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = "llm.provider=openrouter")
 @EnabledIfEnvironmentVariable(named = "OPENROUTER_API_KEY", matches = ".+")
-class OpenRouterClientLiveTest {
+class ChatClientLlmClientOpenRouterLiveTest {
 
     @Autowired
-    private LlmClient llmClient;
+    private ChatClientLlmClient llmClient;
 
     @Autowired
     private JsonResponseParser jsonResponseParser;

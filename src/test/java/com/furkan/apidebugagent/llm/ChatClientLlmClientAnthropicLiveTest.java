@@ -12,10 +12,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = "llm.provider=anthropic")
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
-class LlmClientLiveTest {
+class ChatClientLlmClientAnthropicLiveTest {
 
     @Autowired
-    private LlmClient llmClient;
+    private ChatClientLlmClient llmClient;
 
     @Autowired
     private JsonResponseParser jsonResponseParser;
