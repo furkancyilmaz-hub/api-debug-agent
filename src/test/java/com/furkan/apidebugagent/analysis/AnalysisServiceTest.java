@@ -30,8 +30,11 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AnalysisServiceTest {
 
-    private static final LlmProperties LLM_ENABLED = new LlmProperties(true, "claude-sonnet-5", 3000);
-    private static final LlmProperties LLM_DISABLED = new LlmProperties(false, "claude-sonnet-5", 3000);
+    private static final Map<String, LlmProperties.ProviderOptions> LLM_PROVIDERS = Map.of("anthropic",
+            new LlmProperties.ProviderOptions("claude-sonnet-5", 3000));
+
+    private static final LlmProperties LLM_ENABLED = new LlmProperties(true, "anthropic", LLM_PROVIDERS);
+    private static final LlmProperties LLM_DISABLED = new LlmProperties(false, "anthropic", LLM_PROVIDERS);
 
     private static final AnalysisProperties PROPERTIES = new AnalysisProperties(1000);
 

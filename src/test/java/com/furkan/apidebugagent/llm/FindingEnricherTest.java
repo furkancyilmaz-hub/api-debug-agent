@@ -23,11 +23,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class FindingEnricherTest {
 
-    private static final LlmProperties ENABLED = new LlmProperties(true, "claude-sonnet-5", 3000);
-    private static final LlmProperties DISABLED = new LlmProperties(false, "claude-sonnet-5", 3000);
+    private static final Map<String, LlmProperties.ProviderOptions> PROVIDERS = Map.of("anthropic",
+            new LlmProperties.ProviderOptions("claude-sonnet-5", 3000));
+
+    private static final LlmProperties ENABLED = new LlmProperties(true, "anthropic", PROVIDERS);
+    private static final LlmProperties DISABLED = new LlmProperties(false, "anthropic", PROVIDERS);
 
     @Mock
-    private LlmClient llmClient;
+    private ChatClientLlmClient llmClient;
 
     private final JsonResponseParser jsonResponseParser = new JsonResponseParser();
 

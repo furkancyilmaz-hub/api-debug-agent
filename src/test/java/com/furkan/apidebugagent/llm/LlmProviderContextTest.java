@@ -1,33 +1,31 @@
 package com.furkan.apidebugagent.llm;
 
-import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+@SpringBootTest(properties = "llm.provider=anthropic")
 class LlmProviderContextTest {
 
     @Autowired
-    private LlmClient llmClient;
+    private ChatClientLlmClient llmClient;
 
     @Autowired
-    private List<LlmClient> allClients;
+    private Map<String, ChatClient> chatClients;
 
     @Test
-    void shouldInjectRouterAsThePrimaryLlmClient() {
-        assertThat(llmClient).isInstanceOf(RoutingLlmClient.class);
-        assertThat(llmClient.provider()).isEqualTo("anthropic");
+    void shouldExposeTheConfiguredProvider() {
+        assertThat(llmClient.provider()).isEqualTo(LlmChatClientConfig.ANTHROPIC);
     }
 
     @Test
-    void shouldRegisterEveryProviderImplementation() {
-        assertThat(allClients).hasAtLeastOneElementOfType(AnthropicClient.class)
-            .hasAtLeastOneElementOfType(OpenRouterClient.class)
-            .hasAtLeastOneElementOfType(RoutingLlmClient.class);
+    void shouldRegisterOneChatClientPerProvider() {
+        assertThat(chatClients).containsKeys(LlmChatClientConfig.ANTHROPIC, LlmChatClientConfig.OPENROUTER);
     }
 
 }
