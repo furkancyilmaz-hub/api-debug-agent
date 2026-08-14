@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.IntUnaryOperator;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,7 +77,8 @@ class NPlusOneDetectorTest {
         assertThat(finding.repeatCount()).isEqualTo(200);
         assertThat(finding.distinctBindCount()).isEqualTo(200);
         assertThat(finding.confidence()).isEqualTo(Confidence.HIGH);
-        assertThat(finding.sampleBinds()).containsExactly("1", "2", "3", "4", "5");
+        // Every distinct bind reaches the report — the evidence is never sampled down.
+        assertThat(finding.bindValues()).containsExactlyElementsOf(bindValues(1, 200));
         assertThat(finding.parentSeq()).isZero();
         assertThat(finding.firstChildSeq()).isEqualTo(1);
     }
@@ -108,7 +110,7 @@ class NPlusOneDetectorTest {
         assertThat(findings.get(0).repeatCount()).isEqualTo(200);
         assertThat(findings.get(0).distinctBindCount()).isEqualTo(1);
         assertThat(findings.get(0).confidence()).isEqualTo(Confidence.MEDIUM);
-        assertThat(findings.get(0).sampleBinds()).containsExactly("7");
+        assertThat(findings.get(0).bindValues()).containsExactly("7");
     }
 
     @Test
@@ -172,7 +174,7 @@ class NPlusOneDetectorTest {
         // Blindly taking the first bind would have produced distinctBindCount == 1 ("ACTIVE").
         assertThat(findings.get(0).distinctBindCount()).isEqualTo(10);
         assertThat(findings.get(0).confidence()).isEqualTo(Confidence.HIGH);
-        assertThat(findings.get(0).sampleBinds()).containsExactly("1", "2", "3", "4", "5");
+        assertThat(findings.get(0).bindValues()).containsExactlyElementsOf(bindValues(1, 10));
     }
 
     @Test
@@ -281,5 +283,9 @@ class NPlusOneDetectorTest {
 
     private static BindParameter bind(int index, int value) {
         return new BindParameter(index, "BIGINT", String.valueOf(value));
+    }
+
+    private static List<String> bindValues(int fromInclusive, int toInclusive) {
+        return IntStream.rangeClosed(fromInclusive, toInclusive).mapToObj(String::valueOf).toList();
     }
 }

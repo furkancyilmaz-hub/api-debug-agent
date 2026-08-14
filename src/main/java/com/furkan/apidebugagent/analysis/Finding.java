@@ -17,8 +17,8 @@ import java.util.List;
  *
  * @param findingId   stable identity used to match the model's answer back to this finding
  * @param foreignKey  human-readable relation, e.g. {@code payment.customer_id -> customer.id}
- * @param sampleBinds first few distinct bind values, shown as examples in the report; never sent
- *                    to the model
+ * @param bindValues  every distinct value bound to the foreign-key column, in the order it was
+ *                    first seen; the report shows them all, the model never sees them
  * @param parentSeq   ordering evidence: the parent always ran before {@code firstChildSeq}
  * @param explanation model-written prose, {@code null} until enrichment runs
  * @param suggestion  model-written fix proposal, {@code null} until enrichment runs
@@ -34,7 +34,7 @@ public record Finding(
         int repeatCount,
         int distinctBindCount,
         Confidence confidence,
-        List<String> sampleBinds,
+        List<String> bindValues,
         long parentSeq,
         long firstChildSeq,
         String explanation,
@@ -48,10 +48,10 @@ public record Finding(
      */
     public Finding(String correlationId, String endpoint, String parentTable, String childTable, String foreignKey,
             String normalizedQuery, int repeatCount, int distinctBindCount, Confidence confidence,
-            List<String> sampleBinds, long parentSeq, long firstChildSeq) {
+            List<String> bindValues, long parentSeq, long firstChildSeq) {
 
         this(id(correlationId, foreignKey, normalizedQuery), correlationId, endpoint, parentTable, childTable,
-            foreignKey, normalizedQuery, repeatCount, distinctBindCount, confidence, sampleBinds, parentSeq,
+            foreignKey, normalizedQuery, repeatCount, distinctBindCount, confidence, bindValues, parentSeq,
             firstChildSeq, null, null);
     }
 
@@ -75,7 +75,7 @@ public record Finding(
      */
     public Finding withEnrichment(String explanation, FixProposal suggestion) {
         return new Finding(findingId, correlationId, endpoint, parentTable, childTable, foreignKey, normalizedQuery,
-            repeatCount, distinctBindCount, confidence, sampleBinds, parentSeq, firstChildSeq,
+            repeatCount, distinctBindCount, confidence, bindValues, parentSeq, firstChildSeq,
             this.explanation == null ? explanation : this.explanation,
             this.suggestion == null ? suggestion : this.suggestion);
     }
