@@ -34,9 +34,6 @@ import com.furkan.apidebugagent.sqllog.SqlNormalizer;
 @Component
 public class NPlusOneDetector {
 
-    /** How many distinct bind values a finding carries as examples. */
-    private static final int MAX_SAMPLE_BINDS = 5;
-
     private final ForeignKeyCache foreignKeyCache;
 
     private final NPlusOneProperties properties;
@@ -173,7 +170,7 @@ public class NPlusOneDetector {
             repeatCount,
             distinctBinds.size(),
             confidence(repeatCount, distinctBinds.size()),
-            distinctBinds.stream().limit(MAX_SAMPLE_BINDS).toList(),
+            List.copyOf(distinctBinds),
             parent.get().seq(),
             firstChildSeq));
     }
