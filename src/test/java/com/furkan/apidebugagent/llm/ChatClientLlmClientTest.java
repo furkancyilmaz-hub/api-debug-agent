@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
@@ -127,6 +128,42 @@ class ChatClientLlmClientTest {
             .isInstanceOf(LlmResponseException.class);
     }
 
+    /**
+     * The bug this guards against: a model that ran out of budget answered {@code "{"}, which used
+     * to surface much later as "not valid JSON" and named the symptom instead of the cause.
+     */
+    @Test
+    void shouldThrowLlmResponseExceptionNamingMaxTokensWhenTheAnswerWasCutOff() {
+        when(promptLoader.render(any(), any())).thenReturn("rendered prompt");
+        stubModel(openRouterModel, OpenAiChatOptions.builder().build(), responseWithText("{", "length"));
+
+        assertThatThrownBy(() -> client(properties(true, "openrouter")).ask("test-echo", Map.of()))
+            .isInstanceOf(LlmResponseException.class)
+            .hasMessageContaining("truncated")
+            .hasMessageContaining("finishReason=length")
+            .hasMessageContaining("openai/gpt-5")
+            .hasMessageContaining("1500")
+            .hasMessageContaining("llm.providers.openrouter.max-tokens");
+    }
+
+    @Test
+    void shouldRecogniseTheAnthropicSpellingOfTruncation() {
+        when(promptLoader.render(any(), any())).thenReturn("rendered prompt");
+        stubModel(anthropicModel, AnthropicChatOptions.builder().build(), responseWithText("{", "max_tokens"));
+
+        assertThatThrownBy(() -> client(properties(true, "anthropic")).ask("test-echo", Map.of()))
+            .isInstanceOf(LlmResponseException.class)
+            .hasMessageContaining("truncated");
+    }
+
+    @Test
+    void shouldCarryTheFinishReasonOfAWholeAnswer() {
+        when(promptLoader.render(any(), any())).thenReturn("rendered prompt");
+        stubModels();
+
+        assertThat(client(properties(true, "anthropic")).ask("test-echo", Map.of()).finishReason()).isEqualTo("stop");
+    }
+
     @Test
     void shouldThrowLlmResponseExceptionWhenModelReturnsBlankText() {
         when(promptLoader.render(any(), any())).thenReturn("rendered prompt");
@@ -169,7 +206,12 @@ class ChatClientLlmClientTest {
     }
 
     private ChatResponse responseWithText(String text) {
-        return new ChatResponse(List.of(new Generation(new AssistantMessage(text))));
+        return responseWithText(text, "stop");
+    }
+
+    private ChatResponse responseWithText(String text, String finishReason) {
+        return new ChatResponse(List.of(new Generation(new AssistantMessage(text),
+                ChatGenerationMetadata.builder().finishReason(finishReason).build())));
     }
 
 }

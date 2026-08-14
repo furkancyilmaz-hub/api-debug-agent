@@ -185,6 +185,25 @@ class FindingEnricherTest {
         assertThat(enriched).isEqualTo(findings);
     }
 
+    /**
+     * A truncated answer now fails inside the client, before the parser sees it. The report is the
+     * thing that must survive: same findings, same order, no enrichment.
+     */
+    @Test
+    void shouldReturnFindingsUntouchedWhenTheModelAnswerWasCutOff() {
+        List<Finding> findings = List.of(finding("f1", 214), finding("f2", 7));
+        when(llmClient.ask(eq("enrich"), any()))
+            .thenThrow(new LlmResponseException("Model response was truncated (finishReason=length)"));
+
+        List<Finding> enriched = enricher(ENABLED).enrich(findings);
+
+        assertThat(enriched).isEqualTo(findings);
+        assertThat(enriched).allSatisfy(finding -> {
+            assertThat(finding.explanation()).isNull();
+            assertThat(finding.suggestion()).isNull();
+        });
+    }
+
     @Test
     void shouldNotSendBindValuesOrCorrelationIdToModel() {
         Finding finding = finding("secret-correlation-id", 214);

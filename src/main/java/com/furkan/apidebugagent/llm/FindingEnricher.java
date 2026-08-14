@@ -66,15 +66,18 @@ public class FindingEnricher {
         }
 
         List<Finding> selected = mostRepeated(findings);
+        LlmResult result = null;
         try {
             String payload = objectMapper.writeValueAsString(selected.stream().map(EnrichmentInput::of).toList());
-            LlmResult result = llmClient.ask(PROMPT_NAME, Map.of("findings", payload));
+            result = llmClient.ask(PROMPT_NAME, Map.of("findings", payload));
             return merge(findings, readEnrichments(jsonResponseParser.parse(result.rawText()), selected));
         }
         // Enrichment is a side channel: whatever went wrong — disabled mid-flight, transport,
-        // malformed answer — the measured report still stands and must be returned.
+        // malformed answer — the measured report still stands and must be returned. The finish
+        // reason rides along because a malformed answer is usually a cut-off one.
         catch (JsonProcessingException | RuntimeException e) {
-            log.warn("Finding enrichment failed; returning {} findings unenriched", findings.size(), e);
+            log.warn("Finding enrichment failed (finishReason={}); returning {} findings unenriched",
+                result == null ? "n/a" : result.finishReason(), findings.size(), e);
             return findings;
         }
     }
