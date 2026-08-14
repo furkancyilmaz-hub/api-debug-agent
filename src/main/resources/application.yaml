@@ -21,13 +21,13 @@ web:
 
 llm:
   enabled: true
-  provider: anthropic          # anthropic | openrouter
+  provider: openrouter          # anthropic | openrouter
   providers:
     anthropic:
       model: claude-sonnet-5
       max-tokens: 3000
     openrouter:
-      model: openai/gpt-5      # OpenRouter model kimligi: <saglayici>/<model>
+      model: openrouter/free     # OpenRouter model kimligi: <saglayici>/<model>
       max-tokens: 3000
 
 analysis:

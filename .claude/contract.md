@@ -63,7 +63,7 @@ Bu format değişmez; agent bunu ayrıştırıyor.
 
 ```json
 [ { "childTable":"payment", "childColumn":"customer_id",
-    "parentTable":"customer", "parentColumn":"id" } ]
+  "parentTable":"customer", "parentColumn":"id" } ]
 ```
 
 Agent bunu **açılışta bir kez** çeker ve cache'ler.
@@ -76,6 +76,26 @@ Agent bunu **açılışta bir kez** çeker ve cache'ler.
 
 Console iş endpoint'lerini doğrudan çağırır ve süreyi kendisi ölçer.
 Yollar TE01'de tanımlı.
+
+İki arama ucu, iş anahtarlarıyla çalıştığı için sözleşme seviyesinde sabittir:
+
+| Uç | Parametre | Cevap |
+|---|---|---|
+| `GET /api/proposals/search` | `proposalNo` (zorunlu) | Tek teklif. `proposal_no` unique olduğu için sayfalanmaz; bulunamazsa `404`. |
+| `GET /api/customers/search` | `city` **ya da** `proposalId` + `identityNo` | Sayfalı müşteri listesi. |
+
+`/api/customers/search` tam olarak iki modu kabul eder: tek başına `city`, ya da birlikte
+verilen `proposalId` + `identityNo`. Başka her kombinasyon `400` döner — parametreler sessizce
+yok sayılmaz. `city` modu indexsiz kolonda çalışır (eksik index senaryosu), `identityNo` modu
+`customer(proposal_id, identity_no)` composite index'i üzerinden gider.
+
+> **Dikkat — `identityNo` bir kimlik numarasıdır ve `app_log`'a düşer.** `demo-api` uygulama
+> kodu bu değeri loglamaz, ama `org.hibernate.orm.jdbc.bind` TRACE seviyesinde açık olduğu için
+> sorgunun bind parametresi olarak log'a yazılır:
+> `binding parameter (2:VARCHAR) <- [10000000001]`
+> Bu satır `/internal/logs` üzerinden agent'a, oradan da model katmanına gidebilir. Bind
+> log'ları N+1 analizinin temeli olduğu için (Bölüm 3) kapatılamaz; bu yüzden kimlik numarası
+> ile arama **üretim verisiyle kullanılmamalıdır**.
 
 Başka uç yok. **Bug flag'i, toggle ya da davranış değiştiren bir kontrol
 bulunmuyor** — N+1 problemleri servisin doğal akışında oluşuyor. Bazı
@@ -128,7 +148,6 @@ Tamamlanmış `AnalysisReport`.
 
 | Alan | İçerik |
 |---|---|
-| `findingId` | bulgunun kimliği; `correlationId` + `foreignKey` + `normalizedQuery` hash'i |
 | `correlationId` | |
 | `endpoint` | `GET /customers?withPayments=true` |
 | `parentTable` / `childTable` | |
@@ -146,10 +165,7 @@ Model yalnızca iki **nullable** alan ekler:
 | Alan | İçerik |
 |---|---|
 | `explanation` | bulgunun insan diliyle açıklaması |
-| `suggestion` | `action`, `rationale`, `expectedResult`, `risk`, `alternatives` |
-
-`suggestion`'ın alanları da tek tek nullable'dır; `action` ya da `expectedResult` yoksa
-`suggestion` hiç üretilmez.
+| `suggestion` | `action`, `expectedResult`, `risk`, `alternatives` |
 
 Model bulgu ekleyemez, çıkaramaz, ölçülmüş değerleri değiştiremez. Model
 katmanı kapalıyken bu iki alan boş gelir, rapor yine geçerlidir.
