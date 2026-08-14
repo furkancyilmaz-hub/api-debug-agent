@@ -1,7 +1,9 @@
 package com.furkan.apidebugagent.llm;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -22,6 +24,9 @@ import org.slf4j.LoggerFactory;
 public class ChatClientLlmClient {
 
     private static final Logger log = LoggerFactory.getLogger(ChatClientLlmClient.class);
+
+    /** Lower-cased finish reasons that mean "the budget ran out", across providers. */
+    private static final Set<String> TRUNCATION_REASONS = Set.of("length", "max_tokens");
 
     /** Provider name (bean name, lower-cased) to its client. */
     private final Map<String, ChatClient> chatClients;
@@ -75,12 +80,26 @@ public class ChatClientLlmClient {
             throw new LlmResponseException("Model returned no generation for prompt: " + promptName);
         }
 
+        // Before the text is looked at: a model that ran out of budget returns a fragment, and a
+        // fragment fails later as "invalid JSON", which names the symptom instead of the cause.
+        String finishReason = result.getMetadata().getFinishReason();
+        if (truncated(finishReason)) {
+            throw new LlmResponseException("Model response was truncated (finishReason=" + finishReason + ", provider="
+                    + provider + ", model=" + options.model() + ", maxTokens=" + options.maxTokens() + "); raise llm.providers."
+                    + LlmProperties.normalize(provider) + ".max-tokens");
+        }
+
         String text = result.getOutput().getText();
         if (text == null || text.isBlank()) {
             throw new LlmResponseException("Model returned blank text for prompt: " + promptName);
         }
 
-        return new LlmResult(text);
+        return new LlmResult(text, finishReason);
+    }
+
+    /** Every provider spells it differently; OpenAI-compatible says {@code length}, Anthropic {@code max_tokens}. */
+    private static boolean truncated(String finishReason) {
+        return finishReason != null && TRUNCATION_REASONS.contains(finishReason.toLowerCase(Locale.ROOT));
     }
 
     private ChatClient chatClient(String provider) {

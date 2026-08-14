@@ -8,6 +8,13 @@ spring:
       # OpenRouter, OpenAI-uyumlu /chat/completions konusur
       base-url: https://openrouter.ai/api/v1
       api-key: ${OPENROUTER_API_KEY:}
+      chat:
+        options:
+          # Cevabin JSON olmasi prompt metnine degil sozlesmeye baglansin.
+          # Model seviyesindeki bu varsayilan, ChatClientLlmClient'in gonderdigi
+          # generic ChatOptions ile merge edilir; o yalnizca model + maxTokens tasir.
+          response-format:
+            type: JSON_OBJECT
 
 server:
   port: 8081
@@ -27,8 +34,13 @@ llm:
       model: claude-sonnet-5
       max-tokens: 3000
     openrouter:
-      model: openrouter/free     # OpenRouter model kimligi: <saglayici>/<model>
-      max-tokens: 3000
+      # OpenRouter model kimligi: <saglayici>/<model>. Sabit bir model olmali;
+      # openrouter/free bir router'dir ve her cagrida rastgele bir ucretsiz
+      # modele yonlenir, o yuzden kullanilmiyor.
+      model: google/gemma-4-26b-a4b-it:free
+      # Ucretsiz havuzdaki modeller reasoning uretir ve reasoning token'lari da
+      # bu butceden duser; 10 bulguluk Turkce cikti icin 3000 yetmiyordu.
+      max-tokens: 8000
 
 analysis:
   log-limit: 1000
