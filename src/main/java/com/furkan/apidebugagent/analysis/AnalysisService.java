@@ -18,7 +18,7 @@ import com.furkan.apidebugagent.schema.SchemaUnavailableException;
 import com.furkan.apidebugagent.sqllog.DemoApiUnavailableException;
 import com.furkan.apidebugagent.sqllog.ExecutedQuery;
 import com.furkan.apidebugagent.sqllog.LogClient;
-import com.furkan.apidebugagent.sqllog.LogLine;
+import com.furkan.apidebugagent.sqllog.LogWindow;
 import com.furkan.apidebugagent.sqllog.RequestInfo;
 import com.furkan.apidebugagent.sqllog.StatementAssembler;
 
@@ -73,21 +73,25 @@ public class AnalysisService {
         int logLines = 0;
         int requestCount = 0;
         int queryCount = 0;
+        boolean logsTruncated = false;
 
         try {
             events.accept(AnalysisEvent.stageStarted(Stage.LOGS));
             long stageStart = System.nanoTime();
-            List<LogLine> lines = logClient.fetchLogs(from, to, properties.logLimit());
+            LogWindow window = logClient.fetchLogs(from, to, properties.logLimit());
             List<RequestInfo> requests = logClient.fetchRequests(from, to);
-            logLines = lines.size();
+            logLines = window.lines().size();
             requestCount = requests.size();
+            // A full window means the range holds lines this analysis will never see, and every
+            // repeat count below it is a floor. That travels with the report, not just the log.
+            logsTruncated = window.truncated();
             events.accept(AnalysisEvent.stageFinished(Stage.LOGS, millisSince(stageStart),
-                Map.of("logLines", logLines, "requests", requestCount)));
+                Map.of("logLines", logLines, "requests", requestCount, "truncated", logsTruncated)));
 
             current = Stage.PARSING;
             events.accept(AnalysisEvent.stageStarted(Stage.PARSING));
             stageStart = System.nanoTime();
-            List<ExecutedQuery> queries = statementAssembler.assemble(lines);
+            List<ExecutedQuery> queries = statementAssembler.assemble(window.lines());
             queryCount = queries.size();
             events.accept(AnalysisEvent.stageFinished(Stage.PARSING, millisSince(stageStart),
                 Map.of("queries", queryCount, "correlationIds", correlationIds(queries))));
@@ -116,7 +120,7 @@ public class AnalysisService {
 
             AnalysisReport report = new AnalysisReport(analysisId, AnalysisStatus.COMPLETED, from, to, startedAt,
                 millisSince(analysisStart), new AnalysisCounts(logLines, requestCount, queryCount, findings.size()),
-                findings, null);
+                logsTruncated, findings, null);
             events.accept(AnalysisEvent.report(report));
             return report;
         }
@@ -127,8 +131,8 @@ public class AnalysisService {
             String message = messageFor(e);
             events.accept(AnalysisEvent.error(current, message));
             return new AnalysisReport(analysisId, AnalysisStatus.FAILED, from, to, startedAt,
-                millisSince(analysisStart), new AnalysisCounts(logLines, requestCount, queryCount, 0), List.of(),
-                message);
+                millisSince(analysisStart), new AnalysisCounts(logLines, requestCount, queryCount, 0), logsTruncated,
+                List.of(), message);
         }
     }
 

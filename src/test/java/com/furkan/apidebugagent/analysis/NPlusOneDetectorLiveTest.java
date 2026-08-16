@@ -71,7 +71,7 @@ class NPlusOneDetectorLiveTest {
         });
         Instant to = Instant.now().plus(5, ChronoUnit.SECONDS);
 
-        List<LogLine> lines = logClient.fetchLogs(from, to, 5000);
+        List<LogLine> lines = logClient.fetchLogs(from, to, 5000).lines();
         List<RequestInfo> requests = logClient.fetchRequests(from, to);
         List<ExecutedQuery> queries = statementAssembler.assemble(lines);
 

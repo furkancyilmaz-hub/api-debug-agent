@@ -43,6 +43,10 @@ llm:
       max-tokens: 8000
 
 analysis:
-  log-limit: 1000
+  # demo-api'nin /internal/logs limiti @Max(5000); tavanin altinda kalmak, buyuk
+  # sayfalarda log penceresini erken doldurup tekrar sayilarini oldugundan kucuk
+  # gosteriyordu. Pencere yine de dolabilir; o durum rapordaki logsTruncated ile
+  # bildiriliyor.
+  log-limit: 5000
   n-plus-one:
     min-repeat: 5
