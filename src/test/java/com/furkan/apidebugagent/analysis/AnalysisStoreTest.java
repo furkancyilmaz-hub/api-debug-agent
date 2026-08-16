@@ -137,8 +137,8 @@ class AnalysisStoreTest {
     }
 
     private AnalysisReport report(String analysisId, AnalysisStatus status) {
-        return new AnalysisReport(analysisId, status, FROM, TO, FROM, 42, new AnalysisCounts(0, 0, 0, 0), List.of(),
-            null);
+        return new AnalysisReport(analysisId, status, FROM, TO, FROM, 42, new AnalysisCounts(0, 0, 0, 0), false,
+            List.of(), null);
     }
 
 }

@@ -25,7 +25,11 @@ public class LogClient {
         this.demoApiClient = demoApiClient;
     }
 
-    public List<LogLine> fetchLogs(Instant from, Instant to, int limit) {
+    /**
+     * @return the lines, marked as truncated when the target filled the window exactly — the caller
+     *         is expected to carry that into the report rather than quietly under-report
+     */
+    public LogWindow fetchLogs(Instant from, Instant to, int limit) {
         int effectiveLimit = clampLimit(limit, "fetchLogs");
         String uri = UriComponentsBuilder.fromPath(LOGS_PATH)
             .queryParam("from", from)
@@ -44,7 +48,13 @@ public class LogClient {
             lines.add(new LogLine(i, entry.correlationId(), entry.timestamp(), entry.thread(), entry.logger(),
                 entry.message()));
         }
-        return lines;
+
+        boolean truncated = lines.size() >= effectiveLimit;
+        if (truncated) {
+            log.warn("fetchLogs returned the full window of {} lines; the range holds more and the analysis will "
+                + "see only its beginning", effectiveLimit);
+        }
+        return new LogWindow(lines, truncated, effectiveLimit);
     }
 
     public List<RequestInfo> fetchRequests(Instant from, Instant to) {

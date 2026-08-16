@@ -16,6 +16,7 @@ import com.furkan.apidebugagent.sqllog.DemoApiUnavailableException;
 import com.furkan.apidebugagent.sqllog.ExecutedQuery;
 import com.furkan.apidebugagent.sqllog.LogClient;
 import com.furkan.apidebugagent.sqllog.LogLine;
+import com.furkan.apidebugagent.sqllog.LogWindow;
 import com.furkan.apidebugagent.sqllog.RequestInfo;
 import com.furkan.apidebugagent.sqllog.StatementAssembler;
 
@@ -132,7 +133,8 @@ class AnalysisServiceTest {
 
         analyze(LLM_ENABLED);
 
-        assertThat(finished(Stage.LOGS).payload()).isEqualTo(Map.of("logLines", 2, "requests", 1));
+        assertThat(finished(Stage.LOGS).payload())
+            .isEqualTo(Map.of("logLines", 2, "requests", 1, "truncated", false));
         assertThat(finished(Stage.PARSING).payload()).isEqualTo(Map.of("queries", 1, "correlationIds", 1));
         assertThat(finished(Stage.DETECTION).payload()).isEqualTo(Map.of("findings", 1));
         assertThat(finished(Stage.ENRICHMENT).payload()).isEqualTo(Map.of("enriched", 0));
@@ -170,7 +172,7 @@ class AnalysisServiceTest {
 
     @Test
     void shouldReportTheStageAnalysisBrokeOffIn() {
-        when(logClient.fetchLogs(any(), any(), anyInt())).thenReturn(logLines());
+        when(logClient.fetchLogs(any(), any(), anyInt())).thenReturn(logWindow(true));
         when(logClient.fetchRequests(any(), any())).thenReturn(List.of(request()));
         when(statementAssembler.assemble(any())).thenThrow(new IllegalStateException("bind line parser exploded"));
 
@@ -179,6 +181,32 @@ class AnalysisServiceTest {
         assertThat(last().stage()).isEqualTo(Stage.PARSING);
         assertThat(last().payload()).isEqualTo(Map.of("message", "Analiz sırasında beklenmeyen bir hata oluştu."));
         assertThat(report.counts()).isEqualTo(new AnalysisCounts(2, 1, 0, 0));
+        // The window was already known to be short when parsing blew up; a failed report says so too.
+        assertThat(report.logsTruncated()).isTrue();
+    }
+
+    @Test
+    void shouldCarryAFullLogWindowIntoTheStreamAndTheReport() {
+        when(logClient.fetchLogs(any(), any(), anyInt())).thenReturn(logWindow(true));
+        when(logClient.fetchRequests(any(), any())).thenReturn(List.of(request()));
+        when(statementAssembler.assemble(any())).thenReturn(List.of(query()));
+        when(detector.detect(any(), any())).thenReturn(List.of(finding("c1", 92)));
+
+        AnalysisReport report = analyze(LLM_DISABLED);
+
+        assertThat(finished(Stage.LOGS).payload())
+            .isEqualTo(Map.of("logLines", 2, "requests", 1, "truncated", true));
+        assertThat(report.logsTruncated()).isTrue();
+        assertThat(report.status()).isEqualTo(AnalysisStatus.COMPLETED);
+    }
+
+    @Test
+    void shouldNotClaimTruncationWhenTheWindowHadRoomLeft() {
+        pipelineFinds(List.of());
+
+        AnalysisReport report = analyze(LLM_DISABLED);
+
+        assertThat(report.logsTruncated()).isFalse();
     }
 
     private AnalysisReport analyze(LlmProperties llmProperties) {
@@ -189,16 +217,17 @@ class AnalysisServiceTest {
 
     /** Two log lines, one request, one query, and whatever detection is told to find. */
     private void pipelineFinds(List<Finding> findings) {
-        when(logClient.fetchLogs(any(), any(), anyInt())).thenReturn(logLines());
+        when(logClient.fetchLogs(any(), any(), anyInt())).thenReturn(logWindow(false));
         when(logClient.fetchRequests(any(), any())).thenReturn(List.of(request()));
         when(statementAssembler.assemble(any())).thenReturn(List.of(query()));
         when(detector.detect(any(), any())).thenReturn(findings);
     }
 
-    private List<LogLine> logLines() {
-        return List.of(
+    private LogWindow logWindow(boolean truncated) {
+        List<LogLine> lines = List.of(
             new LogLine(0, "c1", FROM, "http-1", "org.hibernate.SQL", "select 1"),
             new LogLine(1, "c1", FROM, "http-1", "org.hibernate.orm.jdbc.bind", "binding parameter (1:BIGINT) <- [42]"));
+        return new LogWindow(lines, truncated, truncated ? lines.size() : PROPERTIES.logLimit());
     }
 
     private RequestInfo request() {

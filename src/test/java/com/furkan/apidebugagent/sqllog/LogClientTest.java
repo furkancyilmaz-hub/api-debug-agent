@@ -21,12 +21,7 @@ class LogClientTest {
     void shouldFetchLogsAndAssignSeqByResponseOrder() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        String json = """
-            [
-              {"correlationId":"c1","timestamp":"2024-01-01T10:00:00.100Z","level":"DEBUG","logger":"org.hibernate.SQL","thread":"http-nio-1","message":"select p1_0.id from payment p1_0 where p1_0.customer_id=?"},
-              {"correlationId":"c1","timestamp":"2024-01-01T10:00:00.100Z","level":"TRACE","logger":"org.hibernate.orm.jdbc.bind","thread":"http-nio-1","message":"binding parameter (1:BIGINT) <- [42]"}
-            ]
-            """;
+        String json = twoLines();
         server.expect(MockRestRequestMatchers.requestTo(Matchers.allOf(
                 Matchers.startsWith(BASE_URL + "/internal/logs?"),
                 Matchers.containsString("from=2024-01-01T10:00:00Z"),
@@ -36,16 +31,19 @@ class LogClientTest {
 
         LogClient logClient = new LogClient(new DemoApiClient(builder, new TargetProperties(BASE_URL)));
 
-        List<LogLine> result = logClient.fetchLogs(Instant.parse("2024-01-01T10:00:00Z"),
+        LogWindow result = logClient.fetchLogs(Instant.parse("2024-01-01T10:00:00Z"),
             Instant.parse("2024-01-01T11:00:00Z"), 100);
 
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).seq()).isZero();
-        assertThat(result.get(0).correlationId()).isEqualTo("c1");
-        assertThat(result.get(0).thread()).isEqualTo("http-nio-1");
-        assertThat(result.get(0).logger()).isEqualTo("org.hibernate.SQL");
-        assertThat(result.get(1).seq()).isEqualTo(1);
-        assertThat(result.get(1).logger()).isEqualTo("org.hibernate.orm.jdbc.bind");
+        List<LogLine> lines = result.lines();
+        assertThat(lines).hasSize(2);
+        assertThat(lines.get(0).seq()).isZero();
+        assertThat(lines.get(0).correlationId()).isEqualTo("c1");
+        assertThat(lines.get(0).thread()).isEqualTo("http-nio-1");
+        assertThat(lines.get(0).logger()).isEqualTo("org.hibernate.SQL");
+        assertThat(lines.get(1).seq()).isEqualTo(1);
+        assertThat(lines.get(1).logger()).isEqualTo("org.hibernate.orm.jdbc.bind");
+        assertThat(result.truncated()).isFalse();
+        assertThat(result.limit()).isEqualTo(100);
         server.verify();
     }
 
@@ -60,10 +58,46 @@ class LogClientTest {
 
         LogClient logClient = new LogClient(new DemoApiClient(builder, new TargetProperties(BASE_URL)));
 
-        List<LogLine> result = logClient.fetchLogs(Instant.parse("2024-01-01T10:00:00Z"),
+        LogWindow result = logClient.fetchLogs(Instant.parse("2024-01-01T10:00:00Z"),
             Instant.parse("2024-01-01T11:00:00Z"), 10_000);
 
-        assertThat(result).isEmpty();
+        assertThat(result.lines()).isEmpty();
+        assertThat(result.truncated()).isFalse();
+        assertThat(result.limit()).isEqualTo(5000);
+        server.verify();
+    }
+
+    @Test
+    void shouldMarkTheWindowTruncatedWhenTheTargetFillsIt() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(MockRestRequestMatchers.requestTo(Matchers.containsString("limit=2")))
+            .andRespond(MockRestResponseCreators.withSuccess(twoLines(), MediaType.APPLICATION_JSON));
+
+        LogClient logClient = new LogClient(new DemoApiClient(builder, new TargetProperties(BASE_URL)));
+
+        LogWindow result = logClient.fetchLogs(Instant.parse("2024-01-01T10:00:00Z"),
+            Instant.parse("2024-01-01T11:00:00Z"), 2);
+
+        assertThat(result.lines()).hasSize(2);
+        assertThat(result.truncated()).isTrue();
+        server.verify();
+    }
+
+    @Test
+    void shouldNotMarkTheWindowTruncatedWhenItComesBackShortOfTheLimit() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(MockRestRequestMatchers.requestTo(Matchers.containsString("limit=3")))
+            .andRespond(MockRestResponseCreators.withSuccess(twoLines(), MediaType.APPLICATION_JSON));
+
+        LogClient logClient = new LogClient(new DemoApiClient(builder, new TargetProperties(BASE_URL)));
+
+        LogWindow result = logClient.fetchLogs(Instant.parse("2024-01-01T10:00:00Z"),
+            Instant.parse("2024-01-01T11:00:00Z"), 3);
+
+        assertThat(result.lines()).hasSize(2);
+        assertThat(result.truncated()).isFalse();
         server.verify();
     }
 
@@ -89,6 +123,16 @@ class LogClientTest {
         assertThat(result).containsExactly(
             new RequestInfo("c1", "GET", "/customers", 200, 842, Instant.parse("2024-01-01T10:00:00Z")));
         server.verify();
+    }
+
+    /** One SQL line and its bind line — the smallest response the assembler would accept. */
+    private static String twoLines() {
+        return """
+            [
+              {"correlationId":"c1","timestamp":"2024-01-01T10:00:00.100Z","level":"DEBUG","logger":"org.hibernate.SQL","thread":"http-nio-1","message":"select p1_0.id from payment p1_0 where p1_0.customer_id=?"},
+              {"correlationId":"c1","timestamp":"2024-01-01T10:00:00.100Z","level":"TRACE","logger":"org.hibernate.orm.jdbc.bind","thread":"http-nio-1","message":"binding parameter (1:BIGINT) <- [42]"}
+            ]
+            """;
     }
 
 }

@@ -7,10 +7,12 @@ import java.util.List;
  * The result of one analysis over a time range. Everything in it is measured — the report is
  * already complete when detection ends, and stays valid when the model layer never runs.
  *
- * @param from  start of the analysed range
- * @param to    end of the analysed range
- * @param error a short, client-safe line; {@code null} unless the status is
- *              {@link AnalysisStatus#FAILED}
+ * @param from           start of the analysed range
+ * @param to             end of the analysed range
+ * @param logsTruncated  the log window filled up, so the range holds lines this analysis never
+ *                       saw; repeat counts below are then a floor, not the real number
+ * @param error          a short, client-safe line; {@code null} unless the status is
+ *                       {@link AnalysisStatus#FAILED}
  */
 public record AnalysisReport(
         String analysisId,
@@ -20,6 +22,7 @@ public record AnalysisReport(
         Instant startedAt,
         long durationMs,
         AnalysisCounts counts,
+        boolean logsTruncated,
         List<Finding> findings,
         String error) {
 }

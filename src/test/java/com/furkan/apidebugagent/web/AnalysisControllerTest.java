@@ -139,7 +139,7 @@ class AnalysisControllerTest {
 
     private AnalysisReport report(String analysisId) {
         return new AnalysisReport(analysisId, AnalysisStatus.COMPLETED, FROM, TO, FROM, 42,
-            new AnalysisCounts(2, 1, 1, 0), List.of(), null);
+            new AnalysisCounts(2, 1, 1, 0), false, List.of(), null);
     }
 
 }
